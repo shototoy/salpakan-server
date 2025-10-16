@@ -6,8 +6,6 @@ const path = require('path');
 
 const port = process.env.PORT || 8080;
 const isProduction = process.env.NODE_ENV === 'production';
-
-// Read HTML and CSS files
 const htmlPath = path.join(__dirname, 'public', 'index.html');
 const cssPath = path.join(__dirname, 'public', 'styles.css');
 
@@ -102,7 +100,7 @@ const localIP = getLocalIP();
 const startTime = Date.now();
 
 console.log('\n' + '='.repeat(60));
-console.log('🎮  SALPAKAN SERVER');
+console.log('  SALPAKAN SERVER');
 console.log('='.repeat(60));
 console.log(`\n📍  Server Type: ${isProduction ? 'CLOUD (Render)' : 'LOCAL'}`);
 if (!isProduction) {
