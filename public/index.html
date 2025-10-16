@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Salpakan Game Server</title>
+    <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="logo">🎮</div>
+            <h1>SALPAKAN GAME SERVER</h1>
+            <p class="subtitle">Multiplayer Strategy Game</p>
+        </header>
+
+        <div class="server-info">
+            <h2>📡 Server Information</h2>
+            <div class="info-grid">
+                <div class="info-item">
+                    <span class="label">Status:</span>
+                    <span class="value status-online" id="serverStatus">🟢 ONLINE</span>
+                </div>
+                <div class="info-item">
+                    <span class="label">Active Rooms:</span>
+                    <span class="value" id="roomCount">0</span>
+                </div>
+                <div class="info-item">
+                    <span class="label">Connected Players:</span>
+                    <span class="value" id="playerCount">0</span>
+                </div>
+                <div class="info-item">
+                    <span class="label">Uptime:</span>
+                    <span class="value" id="uptime">0m</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="rooms-section">
+            <div class="section-header">
+                <h2>🎯 Active Rooms</h2>
+                <button class="refresh-btn" onclick="refreshRooms()">🔄 Refresh</button>
+            </div>
+            <div id="roomsList" class="rooms-list">
+                <div class="loading">Loading rooms...</div>
+            </div>
+        </div>
+
+        <div class="instructions">
+            <h2>ℹ️ How to Connect</h2>
+            <div class="instruction-card">
+                <h3>For Players:</h3>
+                <p>Use the Salpakan game client to connect to this server:</p>
+                <ol>
+                    <li>Open the game client</li>
+                    <li>Go to Multiplayer → Settings</li>
+                    <li>Add this server's WebSocket URL</li>
+                    <li>Create or join a room</li>
+                </ol>
+            </div>
+        </div>
+
+        <footer>
+            <p>🇵🇭 Game of the Generals • Philippine Strategy Game</p>
+            <p class="version">Server v1.0.0</p>
+        </footer>
+    </div>
+
+    <script>
+        let ws;
+        let startTime = Date.now();
+        
+        function connect() {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `${protocol}//${window.location.host}`;
+            
+            ws = new WebSocket(wsUrl);
+            
+            ws.onopen = () => {
+                console.log('Connected to server');
+                document.getElementById('serverStatus').innerHTML = '🟢 ONLINE';
+                document.getElementById('serverStatus').className = 'value status-online';
+                ws.send(JSON.stringify({ type: 'getRooms' }));
+            };
+
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                if (data.type === 'roomList') {
+                    updateRoomsList(data.rooms);
+                }
+            };
+
+            ws.onerror = () => {
+                document.getElementById('serverStatus').innerHTML = '🔴 ERROR';
+                document.getElementById('serverStatus').className = 'value status-offline';
+            };
+
+            ws.onclose = () => {
+                document.getElementById('serverStatus').innerHTML = '🟡 RECONNECTING...';
+                document.getElementById('serverStatus').className = 'value status-waiting';
+                setTimeout(connect, 3000);
+            };
+        }
+
+        function updateRoomsList(rooms) {
+            const roomsList = document.getElementById('roomsList');
+            const roomCount = document.getElementById('roomCount');
+            
+            roomCount.textContent = rooms.length;
+
+            // Calculate total players
+            const totalPlayers = rooms.reduce((sum, room) => sum + room.players, 0);
+            document.getElementById('playerCount').textContent = totalPlayers;
+
+            if (rooms.length === 0) {
+                roomsList.innerHTML = '<div class="no-rooms">No active rooms. Create one in the game client!</div>';
+                return;
+            }
+
+            roomsList.innerHTML = rooms.map(room => {
+                const maxPlayers = room.roomType === '3player' ? 3 : 2;
+                const statusClass = room.gameStarted ? 'status-playing' : 'status-waiting';
+                const statusText = room.gameStarted ? '🎮 Playing' : '⏳ Lobby';
+                const roomTypeText = room.roomType === '3player' ? '👁️ 3-Player' : '⚔️ 1v1';
+                const fullClass = room.isFull ? 'room-full' : '';
+                
+                return `
+                    <div class="room-card ${fullClass}">
+                        <div class="room-header">
+                            <span class="room-id">${room.id}</span>
+                            <span class="room-type">${roomTypeText}</span>
+                        </div>
+                        <div class="room-info">
+                            <div class="info-row">
+                                <span class="players-count">👥 ${room.players}/${maxPlayers}</span>
+                                <span class="${statusClass}">${statusText}</span>
+                            </div>
+                            ${room.isFull ? '<span class="full-badge">FULL</span>' : ''}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function refreshRooms() {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({ type: 'getRooms' }));
+            }
+        }
+
+        function updateUptime() {
+            const elapsed = Math.floor((Date.now() - startTime) / 1000 / 60);
+            document.getElementById('uptime').textContent = `${elapsed}m`;
+        }
+
+        // Auto-refresh rooms every 5 seconds
+        setInterval(() => {
+            refreshRooms();
+        }, 5000);
+
+        // Update uptime every minute
+        setInterval(updateUptime, 60000);
+
+        // Connect on load
+        connect();
+    </script>
+</body>
+</html>
